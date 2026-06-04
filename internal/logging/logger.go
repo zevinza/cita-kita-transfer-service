@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+//go:generate go run go.uber.org/mock/mockgen@latest -source=logger.go -destination=logger_mock.go -package=logging Logger
 type Logger interface {
 	Error(ctx context.Context, msg string, args ...any)
 	Warn(ctx context.Context, msg string, args ...any)

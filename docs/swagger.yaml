@@ -1,0 +1,195 @@
+basePath: /
+definitions:
+  model.AccountListResponse:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/model.User'
+        type: array
+    type: object
+  model.BatchDetail:
+    properties:
+      idempotency_key:
+        example: p3Rt8yKm2QnX5vJ9
+        type: string
+      message:
+        example: transfer OK
+        type: string
+      status:
+        enum:
+        - success
+        - failed
+        example: success
+        type: string
+    type: object
+  model.BatchTransferResponse:
+    properties:
+      details:
+        items:
+          $ref: '#/definitions/model.BatchDetail'
+        type: array
+      failed:
+        example: 1
+        type: integer
+      success:
+        example: 2
+        type: integer
+    type: object
+  model.ErrorResponse:
+    properties:
+      error:
+        example: invalid request
+        type: string
+    type: object
+  model.TransferRequest:
+    properties:
+      amount:
+        example: 100
+        type: integer
+      from_id:
+        example: A1
+        type: string
+      idempotency_key:
+        example: k7Fp2mQx9ZnW4bL8
+        type: string
+      to_id:
+        example: A2
+        type: string
+    type: object
+  model.TransferResponse:
+    properties:
+      amount:
+        example: 100
+        type: integer
+      from_id:
+        example: A1
+        type: string
+      idempotency_key:
+        example: k7Fp2mQx9ZnW4bL8
+        type: string
+      to_id:
+        example: A2
+        type: string
+    type: object
+  model.User:
+    properties:
+      balance:
+        example: 1000
+        type: integer
+      id:
+        example: A1
+        type: string
+      name:
+        example: John Doe
+        type: string
+    type: object
+host: localhost:8000
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: Mini financial transfer API with atomicity, idempotency, and batch
+    processing.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Cita Kita Transfer Service API
+  version: "1.0"
+paths:
+  /accounts:
+    get:
+      description: Returns all seeded users with their current balances
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AccountListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: List accounts
+      tags:
+      - account
+  /batch-transfer:
+    post:
+      consumes:
+      - application/json
+      description: Processes multiple transfers concurrently. Each item is idempotent
+        by idempotency_key.
+      parameters:
+      - description: Batch transfer requests
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/model.TransferRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.BatchTransferResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Batch transfer funds
+      tags:
+      - transfer
+  /health:
+    get:
+      description: Returns OK when the service is running
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Health check
+      tags:
+      - health
+  /transfer:
+    post:
+      consumes:
+      - application/json
+      description: Transfers amount from one account to another. Idempotent by idempotency_key.
+      parameters:
+      - description: Transfer request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.TransferRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TransferResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/model.ErrorResponse'
+      summary: Transfer funds between accounts
+      tags:
+      - transfer
+schemes:
+- http
+swagger: "2.0"

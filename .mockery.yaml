@@ -1,0 +1,12 @@
+with-expecter: true
+dir: "{{.InterfaceDir}}/mocks"
+mockname: "Mock{{.InterfaceName}}"
+outpkg: mocks
+filename: "mock_{{.InterfaceName}}.go"
+packages:
+  github.com/zevinza/cita-kita-transfer-service/repository:
+    interfaces:
+      TransactionRepository:
+  github.com/zevinza/cita-kita-transfer-service/internal/logging:
+    interfaces:
+      Logger:
