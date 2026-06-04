@@ -37,6 +37,10 @@ func NewTransferService(
 }
 
 func (s *transferService) Transfer(ctx context.Context, request *model.TransferRequest) (*model.TransferResponse, error) {
+	if request.FromID == request.ToID {
+		return nil, errors.New("from_id and to_id cannot be the same")
+	}
+
 	if _, err := s.transactionRepository.GetBalance(ctx, request.ToID); err != nil {
 		return nil, err
 	}
