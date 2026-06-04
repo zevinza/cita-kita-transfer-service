@@ -20,8 +20,15 @@ func newTransferServiceTest(t *testing.T) (TransferService, *repository.MockTran
 	ctrl := gomock.NewController(t)
 	mockRepo := repository.NewMockTransactionRepository(ctrl)
 	mockLogger := logging.NewMockLogger(ctrl)
+	allowTransferLogs(mockLogger)
 	svc := NewTransferService(mockLogger, mockRepo, lock.NewAccountLocker())
 	return svc, mockRepo, mockLogger
+}
+
+func allowTransferLogs(mockLogger *logging.MockLogger) {
+	mockLogger.EXPECT().Info(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockLogger.EXPECT().Warn(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockLogger.EXPECT().Error(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 }
 
 func TestTransfer_ValidationErrors(t *testing.T) {
@@ -198,12 +205,11 @@ func TestTransfer_DestinationNotFound(t *testing.T) {
 }
 
 func TestTransfer_InsufficientBalance(t *testing.T) {
-	svc, mockRepo, mockLogger := newTransferServiceTest(t)
+	svc, mockRepo, _ := newTransferServiceTest(t)
 	ctx := context.Background()
 
 	mockRepo.EXPECT().GetBalance(ctx, "A2").Return(int64(2000), nil)
 	mockRepo.EXPECT().GetBalance(ctx, "A1").Return(int64(50), nil)
-	mockLogger.EXPECT().Error(ctx, "insufficient balance", "balance", int64(50), "amount", int64(100))
 
 	_, err := svc.Transfer(ctx, &model.TransferRequest{
 		FromID:         "A1",
@@ -303,7 +309,7 @@ func TestBatchTransfer_Logic(t *testing.T) {
 }
 
 func TestBatchTransfer_Service(t *testing.T) {
-	svc, mockRepo, mockLogger := newTransferServiceTest(t)
+	svc, mockRepo, _ := newTransferServiceTest(t)
 	ctx := context.Background()
 
 	req := model.TransferRequest{
@@ -317,7 +323,6 @@ func TestBatchTransfer_Service(t *testing.T) {
 	mockRepo.EXPECT().GetBalance(ctx, "A1").Return(int64(1000), nil).AnyTimes()
 	mockRepo.EXPECT().GetIdempotencyResult(ctx, "batch-key-1").Return(nil, false, nil)
 	mockRepo.EXPECT().ApplyTransfer(ctx, &req).Return(nil)
-	mockLogger.EXPECT().Error(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	resp, err := svc.BatchTransfer(ctx, []model.TransferRequest{req})
 
@@ -330,7 +335,7 @@ func TestBatchTransfer_Service(t *testing.T) {
 }
 
 func TestBatchTransfer_PartialFailure(t *testing.T) {
-	svc, mockRepo, mockLogger := newTransferServiceTest(t)
+	svc, mockRepo, _ := newTransferServiceTest(t)
 	ctx := context.Background()
 
 	successReq := model.TransferRequest{
@@ -350,7 +355,6 @@ func TestBatchTransfer_PartialFailure(t *testing.T) {
 	mockRepo.EXPECT().GetBalance(ctx, "A1").Return(int64(1000), nil).AnyTimes()
 	mockRepo.EXPECT().GetIdempotencyResult(ctx, "batch-ok").Return(nil, false, nil)
 	mockRepo.EXPECT().ApplyTransfer(ctx, &successReq).Return(nil)
-	mockLogger.EXPECT().Error(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	resp, err := svc.BatchTransfer(ctx, []model.TransferRequest{successReq, failReq})
 

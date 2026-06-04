@@ -10,6 +10,8 @@ import (
 )
 
 func (s *transferService) BatchTransfer(ctx context.Context, request []model.TransferRequest) (*model.BatchTransferResponse, error) {
+	s.logger.Info(ctx, "batch transfer started", "count", len(request))
+
 	wg := sync.WaitGroup{}
 	results := make([]model.BatchDetail, len(request))
 
@@ -46,6 +48,12 @@ func (s *transferService) BatchTransfer(ctx context.Context, request []model.Tra
 			failedCount++
 		}
 	}
+
+	s.logger.Info(ctx, "batch transfer completed",
+		"count", len(request),
+		"success", successCount,
+		"failed", failedCount,
+	)
 
 	return &model.BatchTransferResponse{
 		Success: successCount,

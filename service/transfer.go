@@ -37,29 +37,36 @@ func NewTransferService(
 }
 
 func (s *transferService) Transfer(ctx context.Context, request *model.TransferRequest) (*model.TransferResponse, error) {
+	fields := transferLogFields(request)
+	s.logger.Info(ctx, "transfer started", fields...)
+
 	if request.FromID == request.ToID {
+		s.logger.Warn(ctx, "transfer rejected: same account", fields...)
 		return nil, errors.New("from_id and to_id cannot be the same")
 	}
 
 	if _, err := s.transactionRepository.GetBalance(ctx, request.ToID); err != nil {
+		s.logger.Error(ctx, "transfer failed: destination lookup", append(fields, "error", err)...)
 		return nil, err
 	}
 
 	balance, err := s.transactionRepository.GetBalance(ctx, request.FromID)
 	if err != nil {
+		s.logger.Error(ctx, "transfer failed: source lookup", append(fields, "error", err)...)
 		return nil, err
 	}
 	if balance < request.Amount {
-		s.logger.Error(ctx, "insufficient balance", "balance", balance, "amount", request.Amount)
+		s.logger.Error(ctx, "transfer rejected: insufficient balance", append(fields, "balance", balance)...)
 		return nil, errors.New("insufficient balance")
 	}
 
 	resp, ok, err := s.transactionRepository.GetIdempotencyResult(ctx, request.IdempotencyKey)
 	if err != nil {
-		s.logger.Error(ctx, "failed to get idempotency result", "error", err)
+		s.logger.Error(ctx, "transfer failed: idempotency lookup", append(fields, "error", err)...)
 		return nil, err
 	}
 	if ok {
+		s.logger.Warn(ctx, "transfer idempotent replay", fields...)
 		return resp, nil
 	}
 
@@ -67,10 +74,11 @@ func (s *transferService) Transfer(ctx context.Context, request *model.TransferR
 	defer s.accountLocker.Unlock(request.FromID, request.ToID)
 
 	if err := s.applyTransferWithRetry(ctx, request); err != nil {
-		s.logger.Error(ctx, "failed to apply transfer", "error", err)
+		s.logger.Error(ctx, "transfer failed: apply", append(fields, "error", err)...)
 		return nil, err
 	}
 
+	s.logger.Info(ctx, "transfer applied", fields...)
 	return &model.TransferResponse{
 		FromID:         request.FromID,
 		ToID:           request.ToID,
@@ -83,17 +91,22 @@ func (s *transferService) applyTransferWithRetry(ctx context.Context, request *m
 	cfg := config.Get()
 	var lastErr error
 
+	fields := transferLogFields(request)
+
 	for attempt := 0; attempt <= cfg.MaxRetries; attempt++ {
 		lastErr = s.transactionRepository.ApplyTransfer(ctx, request)
 		if lastErr == nil {
 			return nil
 		}
 		if strings.Contains(lastErr.Error(), "insufficient balance") {
+			s.logger.Warn(ctx, "transfer apply rejected: insufficient balance", append(fields, "attempt", attempt)...)
 			return lastErr
 		}
 		if attempt == cfg.MaxRetries {
 			break
 		}
+
+		s.logger.Warn(ctx, "transfer apply retry", append(fields, "attempt", attempt, "error", lastErr)...)
 
 		timer := time.NewTimer(cfg.RetryBaseBackoff)
 		select {
@@ -107,8 +120,11 @@ func (s *transferService) applyTransferWithRetry(ctx context.Context, request *m
 	return lastErr
 }
 
-func matchesIdempotencyRequest(resp *model.TransferResponse, req *model.TransferRequest) bool {
-	return resp.FromID == req.FromID &&
-		resp.ToID == req.ToID &&
-		resp.Amount == req.Amount
+func transferLogFields(request *model.TransferRequest) []any {
+	return []any{
+		"idempotency_key", request.IdempotencyKey,
+		"from_id", request.FromID,
+		"to_id", request.ToID,
+		"amount", request.Amount,
+	}
 }

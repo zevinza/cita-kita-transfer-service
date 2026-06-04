@@ -35,6 +35,7 @@ func NewTransferController(logger logging.Logger, transferService service.Transf
 func (c *transferController) Transfer(ctx *fiber.Ctx) error {
 	request := new(model.TransferRequest)
 	if err := ctx.BodyParser(request); err != nil {
+		c.logger.Warn(ctx.Context(), "transfer request invalid", "error", err)
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "invalid request",
 		})
@@ -64,6 +65,7 @@ func (c *transferController) Transfer(ctx *fiber.Ctx) error {
 func (c *transferController) BatchTransfer(ctx *fiber.Ctx) error {
 	requests := new([]model.TransferRequest)
 	if err := ctx.BodyParser(requests); err != nil {
+		c.logger.Warn(ctx.Context(), "batch transfer request invalid", "error", err)
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "invalid request",
 		})
