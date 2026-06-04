@@ -4,6 +4,16 @@ Mini financial transfer API built in Go. It supports single and batch transfers 
 
 Balances are stored in **Redis** using a Lua script so debit, credit, and idempotency recording happen in one atomic step.
 
+## Assumptions
+
+Critical design decisions for correctness and scope:
+
+1. **Redis Lua is the source of truth** — Debit, credit, and idempotency are applied in one atomic script. Correctness across instances depends on Redis, not the app layer.
+2. **Client-owned idempotency keys** — Callers must send a unique `idempotency_key` per transfer. A duplicate key returns the stored result and must not debit twice.
+4. **In-process lock is not distributed** — `AccountLocker` only reduces races inside one process. Multiple replicas rely on Redis atomicity, not shared mutexes.
+5. **Optimistic balance check** — The service checks balance before apply; under concurrency, Lua may still reject with `insufficient balance`.
+7. **Batch = parallel, partial success** — Each batch item runs concurrently; failures do not roll back other items.
+
 ## Features
 
 - **Single transfer** — Move funds between two accounts with balance checks

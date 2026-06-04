@@ -17,8 +17,7 @@ const (
 	IdempotencyKeyPrefix = "idempotency:%s"
 )
 
-// applyTransferScript atomically checks idempotency, debits/credits balances, and stores the result.
-// Returns {status, payload}: status 0 = idem key exists, 1 = applied, -1 = insufficient balance.
+// applyTransferScript: atomic idempotency check + debit/credit. status 0=idem exists, 1=applied, -1=insufficient.
 const applyTransferScript = `
 local idem_key = KEYS[1]
 local from_key = KEYS[2]

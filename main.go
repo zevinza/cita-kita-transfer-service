@@ -1,6 +1,6 @@
 // @title           Cita Kita Transfer Service API
 // @version         1.0
-// @description     Mini financial transfer API with atomicity, idempotency, and batch processing.
+// @description     Mini financial transfer API with atomicity, idempotency, and batch processing. See README Assumptions.
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   Armada Muhammad

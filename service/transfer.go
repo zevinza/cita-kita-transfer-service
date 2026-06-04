@@ -69,7 +69,7 @@ func (s *transferService) Transfer(ctx context.Context, request *model.TransferR
 	if err := s.applyTransferWithRetry(ctx, request); err != nil {
 		s.logger.Error(ctx, "failed to apply transfer", "error", err)
 		return nil, err
-	}	
+	}
 
 	return &model.TransferResponse{
 		FromID:         request.FromID,
