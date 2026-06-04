@@ -3,8 +3,8 @@
 // @description     Mini financial transfer API with atomicity, idempotency, and batch processing.
 // @termsOfService  http://swagger.io/terms/
 
-// @contact.name   API Support
-// @contact.email  support@example.com
+// @contact.name   Armada Muhammad
+// @contact.email  armadamuhammads@gmail.com
 
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
@@ -26,6 +26,7 @@ import (
 	_ "github.com/zevinza/cita-kita-transfer-service/docs"
 	"github.com/zevinza/cita-kita-transfer-service/internal/cache"
 	"github.com/zevinza/cita-kita-transfer-service/internal/config"
+	"github.com/zevinza/cita-kita-transfer-service/internal/lock"
 	"github.com/zevinza/cita-kita-transfer-service/internal/logging"
 	"github.com/zevinza/cita-kita-transfer-service/repository"
 	"github.com/zevinza/cita-kita-transfer-service/service"
@@ -44,7 +45,8 @@ func main() {
 	rdb := cache.NewRedisClient()
 
 	transactionRepository := repository.NewTransactionRepository(logger, rdb)
-	transferService := service.NewTransferService(logger, transactionRepository)
+	accountLocker := lock.NewAccountLocker()
+	transferService := service.NewTransferService(logger, transactionRepository, accountLocker)
 	transferController := controller.NewTransferController(logger, transferService)
 
 	seedUserRepository := repository.NewSeedUserRepository(logger, rdb)

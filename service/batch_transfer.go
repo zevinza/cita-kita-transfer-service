@@ -2,37 +2,51 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/zevinza/cita-kita-transfer-service/model"
 )
 
 func (s *transferService) BatchTransfer(ctx context.Context, request []model.TransferRequest) (*model.BatchTransferResponse, error) {
 	wg := sync.WaitGroup{}
-	var successCount, failedCount int
 	results := make([]model.BatchDetail, len(request))
 
 	for i, req := range request {
 		wg.Add(1)
-		go func(req model.TransferRequest) {
+		go func(i int, req model.TransferRequest) {
 			defer wg.Done()
-			resp, err := s.Transfer(ctx, &req)
+
+			if req.IdempotencyKey == "" {
+				req.IdempotencyKey = fmt.Sprintf("batch-%d-%s", i, uuid.NewString())
+			}
+
+			_, err := s.Transfer(ctx, &req)
 			result := model.BatchDetail{
-				IdempotencyKey: resp.IdempotencyKey,
+				IdempotencyKey: req.IdempotencyKey,
 			}
 			if err != nil {
-				failedCount++
 				result.Message = err.Error()
 				result.Status = model.TransferStatusFailed
 			} else {
-				successCount++
 				result.Message = "transfer OK"
 				result.Status = model.TransferStatusSuccess
 			}
 			results[i] = result
-		}(req)
+		}(i, req)
 	}
 	wg.Wait()
+
+	var successCount, failedCount int
+	for _, detail := range results {
+		if detail.Status == model.TransferStatusSuccess {
+			successCount++
+		} else {
+			failedCount++
+		}
+	}
+
 	return &model.BatchTransferResponse{
 		Success: successCount,
 		Failed:  failedCount,
